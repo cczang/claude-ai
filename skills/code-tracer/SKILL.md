@@ -1,13 +1,13 @@
 ---
 name: code-tracer
-description: Use when wanting to trace a function call chain, message processing flow, or feature implementation path through source code. Use when someone asks "how does X work", "trace the flow of Y", "where is Z handled", or needs to understand the complete processing path of a function, command, or feature.
+description: Use when wanting to trace a function call chain, message processing flow, or feature implementation path through source code. Use when someone asks "how does X work", "trace the flow of Y", "where is Z handled", or needs to understand the complete processing path of a function, command, or feature. Also use when needing to find all log points, diagnostic traces, or debug outputs related to a specific feature — e.g. "what logs can help investigate X", "哪些log能协助调查Y", "how to debug Z".
 ---
 
 # Code Tracer
 
 ## Overview
 
-Given a function name, message/command ID, or feature description, produce a layered call chain showing the complete processing flow with exact source locations.
+Given a function name, message/command ID, or feature description, produce a layered call chain showing the complete processing flow with exact source locations. Also supports extracting all diagnostic log points across the call chain for a given feature.
 
 **Core principle:** Start from code-reader's SKILL.md for navigation, then read source code only for the specific path — not the entire module.
 
@@ -18,6 +18,7 @@ Given a function name, message/command ID, or feature description, produce a lay
 | **Function name** | `zx_hub_play_tone` | Search SKILL.md for file:line, then read that function |
 | **Message/Command ID** | `APP_CMD_START_REALTIME_MEDIA` | Search SKILL.md for handler, then trace dispatch chain |
 | **Feature description** | "预览出流" | Search SKILL.md for related entry points, pick the most likely one |
+| **Diagnostic query** | "VoIP有哪些log能调查" | First trace the feature flow, then extract all LOG/print statements along the path |
 
 ## The Two-Step Process
 
@@ -56,7 +57,20 @@ Starting from the file:line found in Step 1:
 
 **Do NOT read files that aren't on the call path.**
 
+## When Input is a Diagnostic Query
+
+Diagnostic queries (如"VoIP有哪些log能协助调查", "how to debug OTA failures") need a combined approach:
+
+1. **First, trace the feature flow** using the standard Two-Step Process above
+2. **Then, for each function on the call chain**, extract all LOG/print/dzlog statements
+3. **Organize logs by phase** (not by file), following the call chain order
+4. **Output format**: use the Diagnostic Log Map format (see below)
+
+This is NOT a simple grep — you must first understand the call chain, then collect logs along that chain. Random grep for keywords will miss context and include irrelevant noise.
+
 ## Output Format
+
+### Standard Call Chain
 
 Present as a layered call chain:
 
@@ -86,6 +100,36 @@ Rules:
 - 关键分支判断只列影响主流程的（不列每个 error check）
 - 如果有多条路径（如 P2P/WebRTC/WebSocket），先说明有几条路径，再分别展开主路径
 - 侧链（日志、统计、通知）放在末尾"副作用"节，不混入主流程
+
+### Diagnostic Log Map
+
+When the input is a diagnostic query, append a log map after the call chain:
+
+```
+## [Feature] 诊断日志一览
+
+### 阶段 1: [阶段名称]
+| 日志关键字 | 文件:行 | 级别 | 含义 |
+|-----------|---------|------|------|
+| `关键字内容` | `file.c:123` | INFO/WARN/ERROR | 一句话说明什么情况会打印 |
+
+### 阶段 2: [阶段名称]
+...
+
+### 排查清单
+1. 先看 X 是否出现 → 确认 Y
+2. 再看 Z 的值 → 判断 W
+...
+
+### 一键 grep 命令
+grep -E "keyword1|keyword2|keyword3" /path/to/log
+```
+
+Rules for diagnostic output:
+- 按调用链的阶段组织，不按文件组织
+- 每个日志必须说明"什么条件下会打印"
+- 提供排查清单：按时序列出检查步骤和判断逻辑
+- 提供一键 grep 命令覆盖全链路关键日志
 
 ## When Input is a Feature Description
 
