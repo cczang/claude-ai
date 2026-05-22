@@ -1,6 +1,6 @@
 ---
 name: disciplined-coder
-description: Use when transitioning from design to implementation — writing new code or modifying existing codebases. Enforces a cognitive model that treats code generation as constrained system design, not text production. Triggers include "implement this", "write the code", "编写代码", "实现方案", or any point where a plan/design needs to become working code.
+description: Use when transitioning from design to implementation — writing new code or modifying existing codebases. Triggers include "implement this", "write the code", "编写代码", "实现方案", or any point where a plan/design needs to become working code.
 ---
 
 # Disciplined Coder
@@ -26,6 +26,31 @@ description: Use when transitioning from design to implementation — writing ne
 - 复杂实现应主动使用 `subagent-driven-development` 拆分并行
 
 **本 skill 的职责：** 确保每个原子变更都经过建模→设计→验证的完整认知循环，产出「属于这个系统」的代码。
+
+## Phase 0: Gauge Depth（判断深度）
+
+在进入建模之前，先判断变更的认知负荷，决定后续阶段的执行深度。
+
+**判断维度：**
+- 变更是否涉及资源生命周期（内存、锁、连接、句柄）？
+- 变更是否修改已有函数的控制流或状态时序？
+- 变更是否跨越模块边界（涉及多个文件/组件的协作）？
+- 变更是否涉及并发、中断、异步上下文？
+
+**三个维度命中 0 个 → 常规变更：**
+- Phase 1 只需完成 1.1（目标锚定），1.2 和 1.3 按需执行
+- Phase 2 正常执行
+- Phase 3 跳过 3.4（读者视角审查），执行 3.1-3.3 和 3.5
+
+**命中 1-2 个 → 标准变更：**
+- Phase 1-3 完整执行
+
+**命中 3-4 个 → 高风险变更：**
+- Phase 1-3 完整执行
+- Phase 1.2 必须对比至少 3 个参考实现
+- Phase 3.4 必须执行，且 Must Fix 零容忍
+
+这不是用来跳过思考的借口。判断错误的代价是：常规变更当高风险处理只浪费时间，高风险变更当常规处理会引入系统级缺陷。**拿不准时，按高一级处理。**
 
 ## Phase 1: Model Before Write（先建模，再动手）
 
@@ -193,9 +218,16 @@ description: Use when transitioning from design to implementation — writing ne
 
 好的代码让读者的每一个预测都是对的：看到函数名能预测行为，看到结构能预测变更方式，看到错误处理能预测失败模式。意外越少，代码质量越高。
 
-### 复杂度是敌人，不是功绩
+### 复杂度需要批判，不是一律拒绝
 
-每一行代码都是负债。不写的代码没有 bug、不需要维护、不会让人困惑。只在真正需要的地方增加复杂度，对未来可能需要的抽象保持克制。错误的抽象比重复更危险——重复容易修复，错误的抽象会成为越陷越深的陷阱。
+每一行代码都是负债。不写的代码没有 bug、不需要维护、不会让人困惑。但这不意味着所有抽象都是过度设计。
+
+**判断抽象是否值得引入：**
+- 这个抽象是被当前已有的多个实例证明了的，还是基于「未来可能需要」的猜测？
+- 如果不做抽象，重复代码在未来修改时会导致一致性风险吗？
+- 引入这个抽象后，系统的可预测性是提高了还是降低了？
+
+**在证据不足时，重复优于猜测性抽象**——重复的代码是透明的，读者能看到每个实例的完整逻辑；错误的抽象是隐式的，它把假设藏在接口背后，当假设失效时修复成本远高于消除重复。但如果已有 3 个以上相同模式的实例，且它们因同一个原因变化，抽象就不再是猜测而是观察到的事实。
 
 ## Anti-Patterns
 
